@@ -32,17 +32,17 @@ func init() {
 }
 
 // RenderLogin 返回登陆信息
-func RenderLogin(c *gin.Context, accountID string, passwordFromDB []byte, passwordFromReq string,
+func RenderLogin(c *gin.Context, loginPayload string, passwordFromDB []byte, passwordFromReq string,
 	jwtKey []byte, host string, roles []string, toolbar int) {
 
-	logCtx := log.WithField("accountID", accountID)
+	logCtx := log.WithField("accountID", loginPayload)
 	// 检查密码hash是否相同
 	if err := bcrypt.CompareHashAndPassword(passwordFromDB, []byte(passwordFromReq)); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message":    "the password or account isn't correct",
-			"account_id": accountID,
-			"status":     "error",
-			"title":      "An error occurred.",
+			"message": "the password or account isn't correct",
+			"payload": loginPayload,
+			"status":  "error",
+			"title":   "An error occurred.",
 		})
 		logCtx.Error(err)
 		return
@@ -50,7 +50,7 @@ func RenderLogin(c *gin.Context, accountID string, passwordFromDB []byte, passwo
 
 	// 声明密码签名
 	claims := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
-		Issuer:    accountID,
+		Issuer:    loginPayload,
 		ExpiresAt: time.Now().Add(time.Hour * time.Duration(ExpireLoginSessionTime)).Unix(), //1 day
 	})
 
@@ -58,10 +58,10 @@ func RenderLogin(c *gin.Context, accountID string, passwordFromDB []byte, passwo
 	sDec, err := b64.StdEncoding.DecodeString(sEnc)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message":    "the sign isn't correct",
-			"account_id": accountID,
-			"status":     "error",
-			"title":      "An error occurred.",
+			"message": "the sign isn't correct",
+			"payload": loginPayload,
+			"status":  "error",
+			"title":   "An error occurred.",
 		})
 		logCtx.Error(err)
 		return
@@ -71,11 +71,11 @@ func RenderLogin(c *gin.Context, accountID string, passwordFromDB []byte, passwo
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message":    "the encode to base64 isn't correct",
-			"account_id": accountID,
-			"status":     "error",
-			"title":      "An error occurred.",
-			"error":      err.Error(),
+			"message": "the encode to base64 isn't correct",
+			"payload": loginPayload,
+			"status":  "error",
+			"title":   "An error occurred.",
+			"error":   err.Error(),
 		})
 		logCtx.Error(err)
 		return
@@ -85,11 +85,11 @@ func RenderLogin(c *gin.Context, accountID string, passwordFromDB []byte, passwo
 	c.SetCookie("jwt", token, 3600*ExpireLoginSessionTime, "/", host, false, false)
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":    "sign in success",
-		"account_id": accountID,
-		"roles":      roles,
-		"tool_bar":   toolbar,
-		"status":     "success",
-		"title":      "Sign In.",
+		"message":  "sign in success",
+		"payload":  loginPayload,
+		"roles":    roles,
+		"tool_bar": toolbar,
+		"status":   "success",
+		"title":    "Sign In.",
 	})
 }
