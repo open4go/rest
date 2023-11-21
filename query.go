@@ -40,6 +40,8 @@ func LoadQuery(c *gin.Context) QueryParams {
 	q := QueryParams{}
 
 	// 加载分页
+	// 不能直接取 9 作为limit
+	// 需要+ 1
 	rangeString := c.DefaultQuery("range", "[0, 9]")
 	var rangeValue []int
 	err := json.Unmarshal([]byte(rangeString), &rangeValue)
@@ -51,7 +53,7 @@ func LoadQuery(c *gin.Context) QueryParams {
 
 	// 页码转换
 	if len(rangeValue) == 2 {
-		limit := rangeValue[1] - rangeValue[0] // 19 - 10
+		limit := rangeValue[1] - rangeValue[0] + 1 // 19 - 10
 		total := rangeValue[1]
 		q.PerPage = int64(limit)
 		q.Page = int64(total)%int64(limit) + 1 // 1
