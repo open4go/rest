@@ -22,6 +22,8 @@ type QueryParams struct {
 	OrderType int `json:"order_type"`
 	// OrderType 排序方式 -1/1
 	Page int64 `json:"page"`
+	// Skip 跳过
+	Skip int64 `json:"skip"`
 	// OrderType 排序方式 -1/1
 	PerPage int64 `json:"per_page"`
 	// OrderType 排序方式 -1/1
@@ -54,8 +56,10 @@ func LoadQuery(c *gin.Context) QueryParams {
 	// 页码转换
 	if len(rangeValue) == 2 {
 		limit := rangeValue[1] - rangeValue[0] // 19 - 10
+		q.Skip = int64(rangeValue[0])
+		total := rangeValue[1]
 		q.PerPage = int64(limit)
-		q.Page = int64(rangeValue[0])
+		q.Page = int64(total)%int64(limit) + 1 // 1
 	}
 
 	// 加载排序
@@ -130,7 +134,7 @@ func (q QueryParams) AsMongoFilter(fields []string, filters map[string]interface
 	// 设置查询选项
 	findOptions := options.FindOptions{}
 	findOptions.SetSort(bson.D{{q.Sort, q.OrderType}})
-	findOptions.SetSkip((q.Page) * q.PerPage)
+	findOptions.SetSkip(q.Skip)
 	findOptions.SetLimit(q.PerPage + 1)
 
 	if q.IsReference {
