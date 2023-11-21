@@ -53,7 +53,7 @@ func LoadQuery(c *gin.Context) QueryParams {
 
 	// 页码转换
 	if len(rangeValue) == 2 {
-		limit := rangeValue[1] - rangeValue[0] + 1 // 19 - 10
+		limit := rangeValue[1] - rangeValue[0] // 19 - 10
 		total := rangeValue[1]
 		q.PerPage = int64(limit)
 		q.Page = int64(total)%int64(limit) + 1 // 1
@@ -132,7 +132,7 @@ func (q QueryParams) AsMongoFilter(fields []string, filters map[string]interface
 	findOptions := options.FindOptions{}
 	findOptions.SetSort(bson.D{{q.Sort, q.OrderType}})
 	findOptions.SetSkip((q.Page - 1) * q.PerPage)
-	findOptions.SetLimit(q.PerPage)
+	findOptions.SetLimit(q.PerPage + 1)
 
 	if q.IsReference {
 		return inFilters, options.FindOptions{}
