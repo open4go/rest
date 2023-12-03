@@ -117,11 +117,19 @@ func (q QueryParams) AsMongoFilter(fields []string, filters map[string]interface
 		val, ok := filters[originKey]
 		if ok {
 			if InterfaceIsSlice(val) {
-				objIds := q.toObjectID(val)
-				if len(objIds) > 0 {
-					q.IsReference = true
-					inFilters := bson.M{}
-					inFilters[finalKey] = bson.M{"$in": objIds}
+				objIds, names, isObjectId := q.toObjectID(val)
+				if isObjectId {
+					if len(objIds) > 0 {
+						q.IsReference = true
+						inFilters := bson.M{}
+						inFilters[finalKey] = bson.M{"$in": objIds}
+					}
+				} else {
+					if len(names) > 0 {
+						q.IsReference = true
+						inFilters := bson.M{}
+						inFilters[finalKey] = bson.M{"$in": names}
+					}
 				}
 			} else {
 				filter := bson.E{Key: finalKey, Value: val}
@@ -143,25 +151,33 @@ func (q QueryParams) AsMongoFilter(fields []string, filters map[string]interface
 	return mongoFilters, findOptions
 }
 
-func (q QueryParams) toObjectID(v interface{}) []*primitive.ObjectID {
+func (q QueryParams) toObjectID(v interface{}) ([]*primitive.ObjectID, []string, bool) {
 
 	b, err := json.Marshal(v)
 	if err != nil {
-		panic(err)
+		return nil, nil, true
 	}
 
 	var slice []string
 	err = json.Unmarshal(b, &slice)
 	if err != nil {
-		panic(err)
+		return nil, nil, true
 	}
+	isObjectID := true
 	// 统一转换所有引用的id
 	objIds := make([]*primitive.ObjectID, 0)
+	names := make([]string, 0)
 	for _, i := range slice {
-		objID, _ := primitive.ObjectIDFromHex(i)
-		objIds = append(objIds, &objID)
+		objID, err := primitive.ObjectIDFromHex(i)
+		if err != nil {
+			isObjectID = false
+			names = append(names, i)
+		} else {
+			objIds = append(objIds, &objID)
+		}
+
 	}
-	return objIds
+	return objIds, names, isObjectID
 }
 
 // RangeContent 分页显示 1, 2, 3 ...99
