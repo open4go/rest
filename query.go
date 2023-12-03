@@ -131,6 +131,7 @@ func (q QueryParams) AsMongoFilter(fields []string, filters map[string]interface
 						inFilters[finalKey] = bson.M{"$in": names}
 					}
 				}
+				log.WithField("val", val).WithField("names", names).WithField("object", objIds).Info("================debug")
 			} else {
 				filter := bson.E{Key: finalKey, Value: val}
 				mongoFilters = append(mongoFilters, filter)
