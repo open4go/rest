@@ -121,13 +121,11 @@ func (q QueryParams) AsMongoFilter(fields []string, filters map[string]interface
 				if isObjectId {
 					if len(objIds) > 0 {
 						q.IsReference = true
-						inFilters := bson.M{}
 						inFilters[finalKey] = bson.M{"$in": objIds}
 					}
 				} else {
 					if len(names) > 0 {
 						q.IsReference = true
-						inFilters := bson.M{}
 						inFilters[finalKey] = bson.M{"$in": names}
 					}
 				}
