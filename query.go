@@ -10,6 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"reflect"
 	"strings"
+	"time"
 )
 
 type QueryParams struct {
@@ -129,12 +130,24 @@ func (q QueryParams) AsMongoFilter(fields []string, filters map[string]interface
 						inFilters[finalKey] = bson.M{"$in": names}
 					}
 				}
-				log.WithField("val", val).WithField("names", names).WithField("object", objIds).Info("================debug")
+				//log.WithField("val", val).WithField("names", names).
+				//	WithField("object", objIds).Info("================debug")
 			} else {
-				filter := bson.E{Key: finalKey, Value: val}
-				mongoFilters = append(mongoFilters, filter)
+				// 判断是否是查询范围的
+				keyWithoutSuffix, f, b := ToRange(finalKey, val)
+				if b {
+					filter := bson.E{Key: keyWithoutSuffix, Value: f}
+					//log.WithField("val", val).WithField("keyWithoutSuffix", keyWithoutSuffix).
+					//	WithField("filter", filter).Info("================filter")
+					mongoFilters = append(mongoFilters, filter)
+				} else {
+					filter := bson.E{Key: finalKey, Value: val}
+					mongoFilters = append(mongoFilters, filter)
+				}
 			}
 		}
+
+		// 过滤区间 filter: {"date_gte":"2023-12-07","date_lte":"2023-12-13"}
 
 	}
 
@@ -200,4 +213,45 @@ func InterfaceIsSlice(t interface{}) bool {
 	default:
 		return false
 	}
+}
+
+// ToRange
+// 要求传人的过滤条件如下命名方式
+//
+//	{"date_gte":"2023-12-07","date_lte":"2023-12-13"}
+//
+// filter := bson.M{
+// "profileID": profileId,
+// "timestamp": bson.M{
+// "$gte": today,
+// },
+// }
+func ToRange(f string, v interface{}) (string, bson.M, bool) {
+	t, err := time.ParseInLocation("2006-01-02", fmt.Sprintf("%s", v), time.Local)
+	if err != nil {
+		// 不是时间范围，所以不需要转换
+		if strings.HasSuffix(f, "_gte") {
+			newF := strings.TrimSuffix(f, "_gte")
+			return newF, bson.M{
+				"$gte": v,
+			}, true
+		} else if strings.HasSuffix(f, "_lte") {
+			newF := strings.TrimSuffix(f, "_lte")
+			return newF, bson.M{
+				"$lte": v,
+			}, true
+		}
+	}
+	if strings.HasSuffix(f, "_gte") {
+		newF := strings.TrimSuffix(f, "_gte")
+		return newF, bson.M{
+			"$gte": t,
+		}, true
+	} else if strings.HasSuffix(f, "_lte") {
+		newF := strings.TrimSuffix(f, "_lte")
+		return newF, bson.M{
+			"$lte": t,
+		}, true
+	}
+	return f, bson.M{}, false
 }
