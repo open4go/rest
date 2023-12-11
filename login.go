@@ -2,6 +2,7 @@ package rest
 
 import (
 	b64 "encoding/base64"
+	"github.com/open4go/middle"
 	"net/http"
 	"os"
 	"strconv"
@@ -32,15 +33,16 @@ func init() {
 }
 
 // RenderLogin 返回登陆信息
-func RenderLogin(c *gin.Context, loginPayload string, passwordFromDB []byte, passwordFromReq string,
+func RenderLogin(c *gin.Context, lp middle.LoginInfo, passwordFromDB []byte, passwordFromReq string,
 	jwtKey []byte, host string, roles []string, toolbar int) {
 
-	logCtx := log.WithField("accountID", loginPayload)
+	logCtx := log.WithField("accountID", lp.AccountId).
+		WithField("UserId", lp.UserId).WithField("UserName", lp.UserName)
 	// 检查密码hash是否相同
 	if err := bcrypt.CompareHashAndPassword(passwordFromDB, []byte(passwordFromReq)); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": "the password or account isn't correct",
-			"payload": loginPayload,
+			"payload": lp.UserId,
 			"status":  "error",
 			"title":   "An error occurred.",
 		})
@@ -50,7 +52,7 @@ func RenderLogin(c *gin.Context, loginPayload string, passwordFromDB []byte, pas
 
 	// 声明密码签名
 	claims := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
-		Issuer:    loginPayload,
+		Issuer:    middle.DumpLoginInfo(lp),
 		ExpiresAt: time.Now().Add(time.Hour * time.Duration(ExpireLoginSessionTime)).Unix(), //1 day
 	})
 
@@ -59,7 +61,7 @@ func RenderLogin(c *gin.Context, loginPayload string, passwordFromDB []byte, pas
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": "the sign isn't correct",
-			"payload": loginPayload,
+			"user_id": lp.UserId,
 			"status":  "error",
 			"title":   "An error occurred.",
 		})
@@ -72,7 +74,7 @@ func RenderLogin(c *gin.Context, loginPayload string, passwordFromDB []byte, pas
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": "the encode to base64 isn't correct",
-			"payload": loginPayload,
+			"user_id": lp.UserId,
 			"status":  "error",
 			"title":   "An error occurred.",
 			"error":   err.Error(),
@@ -85,11 +87,12 @@ func RenderLogin(c *gin.Context, loginPayload string, passwordFromDB []byte, pas
 	c.SetCookie("jwt", token, 3600*ExpireLoginSessionTime, "/", host, false, false)
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":  "sign in success",
-		"payload":  loginPayload,
-		"roles":    roles,
-		"tool_bar": toolbar,
-		"status":   "success",
-		"title":    "Sign In.",
+		"message":    "sign in success",
+		"user_id":    lp.UserId,
+		"account_id": lp.AccountId,
+		"roles":      roles,
+		"tool_bar":   toolbar,
+		"status":     "success",
+		"title":      "Sign In.",
 	})
 }
