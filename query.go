@@ -53,12 +53,15 @@ func LoadQuery(c *gin.Context) QueryParams {
 		q.PerPage = 10
 		q.Page = 1
 	}
-
 	// 页码转换
 	if len(rangeValue) == 2 {
-		limit := rangeValue[1] - rangeValue[0] // 19 - 10
-		q.Skip = int64(rangeValue[0])
 		total := rangeValue[1]
+		if rangeValue[1] == 0 {
+			// 如果是不传入正确的范围，则取默认500
+			total = 500
+		}
+		limit := total - rangeValue[0] // 19 - 10
+		q.Skip = int64(rangeValue[0])
 		q.PerPage = int64(limit)
 		q.Page = int64(total)%int64(limit) + 1 // 1
 	}
