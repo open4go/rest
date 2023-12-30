@@ -35,7 +35,7 @@ func MakeResponse(c *gin.Context, err error, msg string, result interface{}) {
 				"id":      v,
 				"status":  "success",
 			})
-			c.Header("id", v)
+			c.Writer.Header().Set("TargetId", v)
 			return
 		default:
 			_id := c.Param("_id")
@@ -52,7 +52,7 @@ func MakeResponse(c *gin.Context, err error, msg string, result interface{}) {
 					"status":  "success",
 				})
 			}
-			c.Header("id", _id)
+			c.Writer.Header().Set("TargetId", _id)
 			return
 		}
 	}
