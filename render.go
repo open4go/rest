@@ -2,23 +2,12 @@ package rest
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/open4go/middle"
-	"github.com/sirupsen/logrus"
 	"net/http"
 )
 
 // MakeResponse 返回数据
 func MakeResponse(c *gin.Context, err error, msg string, result interface{}) {
-	// Retrieve the Logrus logger from the context
-	logger, _ := c.Get("log")
-	log := logger.(*logrus.Entry)
-	logWithContext := log.WithField("result", result)
-	l := middle.LoadFromHeader(c)
-	id := c.Param("_id")
 	if err != nil {
-		logWithContext.WithField("id", id).
-			WithField("message", msg).
-			WithField("account_id", l.AccountId).Error(err)
 		// 操作失败
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": msg,
