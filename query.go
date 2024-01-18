@@ -155,7 +155,7 @@ func (q QueryParams) AsMongoFilter(fields []string, filters map[string]interface
 	}
 
 	val, ok := filters[q.Sort]
-	if ok && InterfaceIsString(val) {
+	if ok && !InterfaceIsSlice(val) {
 		// 获取转换后的字段作为排序字段
 		// 例如 "meta.created_at=>model.meta.created_at",
 		q.Sort = fmt.Sprintf("%s", val)
@@ -168,7 +168,7 @@ func (q QueryParams) AsMongoFilter(fields []string, filters map[string]interface
 	findOptions.SetLimit(q.PerPage + 1)
 
 	if q.IsReference {
-		return inFilters, options.FindOptions{}
+		return inFilters, findOptions
 	}
 	return mongoFilters, findOptions
 }
