@@ -158,7 +158,7 @@ func (q QueryParams) AsMongoFilter(fields []string, filters map[string]interface
 	if ok && InterfaceIsString(val) {
 		// 获取转换后的字段作为排序字段
 		// 例如 "meta.created_at=>model.meta.created_at",
-		q.Sort = val.(string)
+		q.Sort = fmt.Sprintf("%s", val)
 	}
 
 	// 设置查询选项
