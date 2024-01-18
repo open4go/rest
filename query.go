@@ -29,6 +29,8 @@ type QueryParams struct {
 	PerPage int64 `json:"per_page"`
 	// OrderType 排序方式 -1/1
 	Filter map[string]interface{} `json:"filter"`
+	// KeyTranslate
+	KeyTranslate map[string]string `json:"key_translate"`
 }
 
 // LoadQuery
@@ -41,6 +43,8 @@ type QueryParams struct {
 func LoadQuery(c *gin.Context) QueryParams {
 
 	q := QueryParams{}
+	// 初始化
+	q.KeyTranslate = make(map[string]string)
 
 	// 加载分页
 	// 不能直接取 9 作为limit
@@ -117,6 +121,7 @@ func (q QueryParams) AsMongoFilter(fields []string, filters map[string]interface
 		if len(keyWithRename) == 2 {
 			// 需要转换
 			finalKey = keyWithRename[1]
+			q.KeyTranslate[originKey] = finalKey
 		}
 		val, ok := filters[originKey]
 		if ok {
@@ -154,14 +159,12 @@ func (q QueryParams) AsMongoFilter(fields []string, filters map[string]interface
 
 	}
 
-	val, ok := filters[q.Sort]
-	if ok && !InterfaceIsSlice(val) {
+	val, ok := q.KeyTranslate[q.Sort]
+	if ok {
 		// 获取转换后的字段作为排序字段
 		// 例如 "meta.created_at=>model.meta.created_at",
-		q.Sort = fmt.Sprintf("%s", val)
+		q.Sort = val
 	}
-	log.WithField("val", val).WithField("sort", q.Sort).Info("the sort options")
-
 	// 设置查询选项
 	findOptions := options.FindOptions{}
 	findOptions.SetSort(bson.D{{q.Sort, q.OrderType}})
