@@ -160,6 +160,7 @@ func (q QueryParams) AsMongoFilter(fields []string, filters map[string]interface
 		// 例如 "meta.created_at=>model.meta.created_at",
 		q.Sort = fmt.Sprintf("%s", val)
 	}
+	log.WithField("val", val).WithField("sort", q.Sort).Info("the sort options")
 
 	// 设置查询选项
 	findOptions := options.FindOptions{}
