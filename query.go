@@ -155,7 +155,7 @@ func (q QueryParams) AsMongoFilter(fields []string, filters map[string]interface
 	}
 
 	val, ok := filters[q.Sort]
-	if ok {
+	if ok && InterfaceIsString(val) {
 		// 获取转换后的字段作为排序字段
 		// 例如 "meta.created_at=>model.meta.created_at",
 		q.Sort = val.(string)
@@ -219,6 +219,15 @@ func (q QueryParams) Reference() {
 func InterfaceIsSlice(t interface{}) bool {
 	switch reflect.TypeOf(t).Kind() {
 	case reflect.Slice:
+		return true
+	default:
+		return false
+	}
+}
+
+func InterfaceIsString(t interface{}) bool {
+	switch reflect.TypeOf(t).Kind() {
+	case reflect.String:
 		return true
 	default:
 		return false
