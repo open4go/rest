@@ -98,6 +98,10 @@ func LoadQuery(c *gin.Context) QueryParams {
 	if err != nil {
 		log.WithField("filter", filterString).Error(err)
 	}
+
+	// 判断是否需要嵌入身份信息
+	// 例如用户只获取自己名下的
+
 	q.Filter = filterValue
 
 	// 转换为mongo过滤器
@@ -124,7 +128,7 @@ func (q QueryParams) AsMongoFilter(fields []string, filters map[string]interface
 			q.KeyTranslate[originKey] = finalKey
 		}
 		val, ok := filters[originKey]
-		if ok {
+		if ok && val != nil {
 			if InterfaceIsSlice(val) {
 				objIds, names, isObjectId := q.toObjectID(val)
 				if isObjectId {
@@ -221,6 +225,9 @@ func (q QueryParams) Reference() {
 }
 
 func InterfaceIsSlice(t interface{}) bool {
+	if t == nil {
+		return false
+	}
 	switch reflect.TypeOf(t).Kind() {
 	case reflect.Slice:
 		return true
