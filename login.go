@@ -36,13 +36,13 @@ func init() {
 func RenderLogin(c *gin.Context, lp middle.LoginInfo, passwordFromDB []byte, passwordFromReq string,
 	jwtKey []byte, host string, roles []string, toolbar int) {
 
-	logCtx := log.WithField("accountID", lp.AccountId).
-		WithField("UserId", lp.UserId).WithField("UserName", lp.UserName)
+	logCtx := log.WithField("accountID", lp.AccountID).
+		WithField("UserId", lp.UserID).WithField("UserName", lp.UserName)
 	// 检查密码hash是否相同
 	if err := bcrypt.CompareHashAndPassword(passwordFromDB, []byte(passwordFromReq)); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": "the password or account isn't correct",
-			"payload": lp.UserId,
+			"payload": lp.UserName,
 			"status":  "error",
 			"title":   "An error occurred.",
 		})
@@ -61,7 +61,7 @@ func RenderLogin(c *gin.Context, lp middle.LoginInfo, passwordFromDB []byte, pas
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": "the sign isn't correct",
-			"user_id": lp.UserId,
+			"user_id": lp.UserID,
 			"status":  "error",
 			"title":   "An error occurred.",
 		})
@@ -74,7 +74,7 @@ func RenderLogin(c *gin.Context, lp middle.LoginInfo, passwordFromDB []byte, pas
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": "the encode to base64 isn't correct",
-			"user_id": lp.UserId,
+			"user_id": lp.UserID,
 			"status":  "error",
 			"title":   "An error occurred.",
 			"error":   err.Error(),
@@ -87,12 +87,14 @@ func RenderLogin(c *gin.Context, lp middle.LoginInfo, passwordFromDB []byte, pas
 	c.SetCookie("jwt", token, 3600*ExpireLoginSessionTime, "/", host, false, false)
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":    "sign in success",
-		"user_id":    lp.UserId,
-		"account_id": lp.AccountId,
-		"roles":      roles,
-		"tool_bar":   toolbar,
-		"status":     "success",
-		"title":      "Sign In.",
+		"message":     "sign in success",
+		"user_id":     lp.UserID,
+		"merchant_id": lp.MerchantID,
+		"account_id":  lp.AccountID,
+		"phone":       lp.Phone,
+		"roles":       roles,
+		"tool_bar":    toolbar,
+		"status":      "success",
+		"title":       "Sign In.",
 	})
 }
