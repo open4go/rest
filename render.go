@@ -45,7 +45,7 @@ func MakeResponse(c *gin.Context, err error, msg string, result interface{}) {
 			"request_id": RequestID,
 			"version":    version,
 		})
-		log.Log().WithField("content", msg).
+		log.Log(c.Request.Context()).WithField("content", msg).
 			Error(err)
 		return
 	}
