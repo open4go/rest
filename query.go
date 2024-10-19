@@ -282,12 +282,12 @@ func ToRange(f string, v interface{}) (string, bson.M, bool) {
 	if strings.HasSuffix(f, "_gte") {
 		newF := strings.TrimSuffix(f, "_gte")
 		return newF, bson.M{
-			"$gte": t,
+			"$gte": t.Unix(),
 		}, true
 	} else if strings.HasSuffix(f, "_lte") {
 		newF := strings.TrimSuffix(f, "_lte")
 		return newF, bson.M{
-			"$lte": t,
+			"$lte": t.Unix(),
 		}, true
 	}
 	return f, bson.M{}, false
