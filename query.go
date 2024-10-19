@@ -257,7 +257,14 @@ func InterfaceIsString(t interface{}) bool {
 // },
 // }
 func ToRange(f string, v interface{}) (string, bson.M, bool) {
-	t, err := time.ParseInLocation("2006-01-02", fmt.Sprintf("%s", v), time.Local)
+
+	defaultLayout := "2006-01-02"
+	// 表示有时间格式，例如 2024-10-20 00:00:00
+	if strings.Contains(fmt.Sprintf("%s", v), ":") {
+		defaultLayout = "2006-01-02 15:04:05"
+	}
+
+	t, err := time.ParseInLocation(defaultLayout, fmt.Sprintf("%s", v), time.Local)
 	if err != nil {
 		// 不是时间范围，所以不需要转换
 		if strings.HasSuffix(f, "_gte") {
