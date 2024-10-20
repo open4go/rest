@@ -264,7 +264,12 @@ func ToRange(f string, v interface{}) (string, bson.M, bool) {
 		defaultLayout = "2006-01-02 15:04:05"
 	}
 
-	t, err := time.ParseInLocation(defaultLayout, fmt.Sprintf("%s", v), time.Local)
+	loc, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		fmt.Println("Error loading location:", err)
+	}
+
+	t, err := time.ParseInLocation(defaultLayout, fmt.Sprintf("%s", v), loc)
 	if err != nil {
 		// 不是时间范围，所以不需要转换
 		if strings.HasSuffix(f, "_gte") {
