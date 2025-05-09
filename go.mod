@@ -51,7 +51,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/montanaflynn/stats v0.7.1 // indirect
-	github.com/open4go/db v0.0.6 // indirect
+	github.com/open4go/db v0.0.13 // indirect
 	github.com/open4go/model v0.0.15 // indirect
 	github.com/open4go/r3time v0.0.3 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
@@ -62,7 +62,7 @@ require (
 	github.com/r2day/base v1.6.7 // indirect
 	github.com/r2day/body v0.0.1 // indirect
 	github.com/r2day/db v0.3.5 // indirect
-	github.com/redis/go-redis/v9 v9.0.5 // indirect
+	github.com/redis/go-redis/v9 v9.7.3 // indirect
 	github.com/spf13/afero v1.8.2 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
