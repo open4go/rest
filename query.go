@@ -42,7 +42,18 @@ type QueryParams struct {
 // ?filter={"verified":false,"truck_category_id":"6515a2ac9f46f389d6804c86"}&range=[0,9]&sort=["id","ASC"]
 func LoadQuery(c *gin.Context) QueryParams {
 
-	q := QueryParams{}
+	q := QueryParams{
+		// 初始化所有可能为nil的map
+		Filter:       make(map[string]interface{}),
+		KeyTranslate: make(map[string]string),
+
+		// 设置合理的默认值
+		PerPage:   10,
+		Page:      1,
+		Order:     "ASC",
+		Sort:      "id",
+		OrderType: 1, // 注意：这里修正了排序方向，ASC应为1
+	}
 	// 初始化
 	q.KeyTranslate = make(map[string]string)
 
