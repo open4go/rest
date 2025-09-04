@@ -31,6 +31,8 @@ type QueryParams struct {
 	Filter map[string]interface{} `json:"filter"`
 	// KeyTranslate
 	KeyTranslate map[string]string `json:"key_translate"`
+	// 商户号
+	MerchantId string `json:"merchant_id"`
 }
 
 // LoadQuery
@@ -48,11 +50,12 @@ func LoadQuery(c *gin.Context) QueryParams {
 		KeyTranslate: make(map[string]string),
 
 		// 设置合理的默认值
-		PerPage:   10,
-		Page:      1,
-		Order:     "ASC",
-		Sort:      "id",
-		OrderType: 1, // 注意：这里修正了排序方向，ASC应为1
+		PerPage:    10,
+		Page:       1,
+		Order:      "ASC",
+		Sort:       "id",
+		OrderType:  1, // 注意：这里修正了排序方向，ASC应为1
+		MerchantId: c.GetHeader("X-Tenant-ID"),
 	}
 	// 初始化
 	q.KeyTranslate = make(map[string]string)
@@ -168,6 +171,11 @@ func (q QueryParams) AsMongoFilter(fields []string, filters map[string]interface
 					mongoFilters = append(mongoFilters, filter)
 				}
 			}
+		}
+
+		// 如果存在商户号参数，那么就需要进行隔离显示
+		if q.MerchantId != "" {
+			mongoFilters = append(mongoFilters, bson.E{Key: "_.meta.merchant_id", Value: q.MerchantId})
 		}
 
 		// 过滤区间 filter: {"date_gte":"2023-12-07","date_lte":"2023-12-13"}
