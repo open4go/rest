@@ -52,5 +52,7 @@ func RenderForList(c *gin.Context, contentRange string, counter int64, obj any) 
 	c.Header("Content-Range", contentRange)
 	c.Header("X-Total-Count", fmt.Sprintf("%d", counter))
 	// 返回数据部分
+	// TODO 如果能在这里统一解密加密字段是最好的
+
 	c.JSON(http.StatusOK, obj)
 }

@@ -144,6 +144,7 @@ func (q QueryParams) AsMongoFilter(fields []string, filters map[string]interface
 		val, ok := filters[originKey]
 		if ok && val != nil {
 			if InterfaceIsSlice(val) {
+				// 多条件批量查询
 				objIds, names, isObjectId := q.toObjectID(val)
 				if isObjectId {
 					if len(objIds) > 0 {
@@ -160,13 +161,35 @@ func (q QueryParams) AsMongoFilter(fields []string, filters map[string]interface
 				//	WithField("object", objIds).Info("================debug")
 			} else {
 				// 判断是否是查询范围的
-				keyWithoutSuffix, f, b := ToRange(finalKey, val)
-				if b {
+				keyWithoutSuffix, f, filterType := ToRange(finalKey, val)
+
+				switch filterType {
+				case RangeFilter:
 					filter := bson.E{Key: keyWithoutSuffix, Value: f}
 					//log.WithField("val", val).WithField("keyWithoutSuffix", keyWithoutSuffix).
 					//	WithField("filter", filter).Info("================filter")
 					mongoFilters = append(mongoFilters, filter)
-				} else {
+				case SecFilter:
+					log.WithField("f", finalKey).WithField("value", val).Debug("sec filter hit")
+					valStr, err := ToString(val)
+					if err != nil {
+						log.WithField("val", val).WithField("f", f).Error(err)
+					} else {
+						secVal := GetDataSec(valStr)
+						filter := bson.E{Key: finalKey, Value: secVal}
+						mongoFilters = append(mongoFilters, filter)
+					}
+				case HashFilter:
+					log.WithField("f", finalKey).WithField("value", val).Debug("hex filter hit")
+					valStr, err := ToString(val)
+					if err != nil {
+						log.WithField("val", val).WithField("f", f).Error(err)
+					} else {
+						hexVal := GetDataHash(valStr)
+						filter := bson.E{Key: finalKey, Value: hexVal}
+						mongoFilters = append(mongoFilters, filter)
+					}
+				default:
 					filter := bson.E{Key: finalKey, Value: val}
 					mongoFilters = append(mongoFilters, filter)
 				}
@@ -264,6 +287,15 @@ func InterfaceIsString(t interface{}) bool {
 	}
 }
 
+type FilterType int
+
+const (
+	RangeFilter   FilterType = iota // 时间/大小范围查询
+	SecFilter                       // 加密查询,自动对数据进行解密
+	DefaultFilter                   // 普通明文查询
+	HashFilter                      // 哈希搜索
+)
+
 // ToRange
 // 要求传人的过滤条件如下命名方式
 //
@@ -275,7 +307,7 @@ func InterfaceIsString(t interface{}) bool {
 // "$gte": today,
 // },
 // }
-func ToRange(f string, v interface{}) (string, bson.M, bool) {
+func ToRange(f string, v interface{}) (string, bson.M, FilterType) {
 
 	defaultLayout := "2006-01-02"
 	// 表示有时间格式，例如 2024-10-20 00:00:00
@@ -295,24 +327,31 @@ func ToRange(f string, v interface{}) (string, bson.M, bool) {
 			newF := strings.TrimSuffix(f, "_gte")
 			return newF, bson.M{
 				"$gte": v,
-			}, true
+			}, RangeFilter
 		} else if strings.HasSuffix(f, "_lte") {
 			newF := strings.TrimSuffix(f, "_lte")
 			return newF, bson.M{
 				"$lte": v,
-			}, true
+			}, RangeFilter
 		}
 	}
 	if strings.HasSuffix(f, "_gte") {
 		newF := strings.TrimSuffix(f, "_gte")
 		return newF, bson.M{
 			"$gte": t.Unix(),
-		}, true
+		}, RangeFilter
 	} else if strings.HasSuffix(f, "_lte") {
 		newF := strings.TrimSuffix(f, "_lte")
 		return newF, bson.M{
 			"$lte": t.Unix(),
-		}, true
+		}, RangeFilter
+	} else if strings.HasSuffix(f, "_sec") {
+		newF := strings.TrimSuffix(f, "_sec")
+		return newF, bson.M{}, SecFilter
+	} else if strings.HasSuffix(f, "_hex") {
+		newF := strings.TrimSuffix(f, "_hex")
+		return newF, bson.M{}, HashFilter
 	}
-	return f, bson.M{}, false
+
+	return f, bson.M{}, DefaultFilter
 }
