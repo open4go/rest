@@ -309,6 +309,17 @@ const (
 // }
 func ToRange(f string, v interface{}) (string, bson.M, FilterType) {
 
+	// 先判断是否是加密数据
+	if strings.HasSuffix(f, "_sec") {
+		newF := strings.TrimSuffix(f, "_sec")
+		return newF, bson.M{}, SecFilter
+	} else if strings.HasSuffix(f, "_hex") {
+		newF := strings.TrimSuffix(f, "_hex")
+		return newF, bson.M{}, HashFilter
+	}
+
+	// 再判断是否是时间逻辑
+
 	defaultLayout := "2006-01-02"
 	// 表示有时间格式，例如 2024-10-20 00:00:00
 	if strings.Contains(fmt.Sprintf("%s", v), ":") {
@@ -345,12 +356,6 @@ func ToRange(f string, v interface{}) (string, bson.M, FilterType) {
 		return newF, bson.M{
 			"$lte": t.Unix(),
 		}, RangeFilter
-	} else if strings.HasSuffix(f, "_sec") {
-		newF := strings.TrimSuffix(f, "_sec")
-		return newF, bson.M{}, SecFilter
-	} else if strings.HasSuffix(f, "_hex") {
-		newF := strings.TrimSuffix(f, "_hex")
-		return newF, bson.M{}, HashFilter
 	}
 
 	return f, bson.M{}, DefaultFilter
