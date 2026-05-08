@@ -174,13 +174,13 @@ func (q QueryParams) AsMongoFilter(fields []string, filters map[string]interface
 					//	WithField("filter", filter).Info("================filter")
 					mongoFilters = append(mongoFilters, filter)
 				case SecFilter:
-					log.Log(q.Ctx).WithField("f", finalKey).WithField("value", val).Debug("sec filter hit")
+					log.Log(q.Ctx).WithField("keyWithoutSuffix", keyWithoutSuffix).WithField("value", val).Debug("sec filter hit")
 					valStr, err := ToString(val)
 					if err != nil {
 						log.Log(q.Ctx).WithField("val", val).WithField("f", f).Error(err)
 					} else {
 						secVal := GetDataSec(valStr)
-						filter := bson.E{Key: finalKey, Value: secVal}
+						filter := bson.E{Key: keyWithoutSuffix, Value: secVal}
 						mongoFilters = append(mongoFilters, filter)
 					}
 				case HashFilter:
@@ -190,7 +190,7 @@ func (q QueryParams) AsMongoFilter(fields []string, filters map[string]interface
 						log.Log(q.Ctx).WithField("val", val).WithField("f", f).Error(err)
 					} else {
 						hexVal := GetDataHash(valStr)
-						filter := bson.E{Key: finalKey, Value: hexVal}
+						filter := bson.E{Key: keyWithoutSuffix, Value: hexVal}
 						mongoFilters = append(mongoFilters, filter)
 					}
 				default:
