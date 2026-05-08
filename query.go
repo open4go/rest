@@ -1,10 +1,11 @@
 package rest
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	log "github.com/sirupsen/logrus"
+	log "github.com/open4go/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -33,6 +34,8 @@ type QueryParams struct {
 	KeyTranslate map[string]string `json:"key_translate"`
 	// 商户号
 	MerchantId string `json:"merchant_id"`
+	// Ctx
+	Ctx context.Context
 }
 
 // LoadQuery
@@ -56,6 +59,7 @@ func LoadQuery(c *gin.Context) QueryParams {
 		Sort:       "id",
 		OrderType:  1, // 注意：这里修正了排序方向，ASC应为1
 		MerchantId: c.GetHeader("X-Tenant-ID"),
+		Ctx:        c.Request.Context(),
 	}
 	// 初始化
 	q.KeyTranslate = make(map[string]string)
@@ -67,7 +71,7 @@ func LoadQuery(c *gin.Context) QueryParams {
 	var rangeValue []int
 	err := json.Unmarshal([]byte(rangeString), &rangeValue)
 	if err != nil {
-		log.WithField("range", rangeString).Error(err)
+		log.Log(c.Request.Context()).WithField("range", rangeString).Error(err)
 		q.PerPage = 10
 		q.Page = 1
 	}
@@ -89,7 +93,7 @@ func LoadQuery(c *gin.Context) QueryParams {
 	var sortValue []string
 	err = json.Unmarshal([]byte(sortString), &sortValue)
 	if err != nil {
-		log.WithField("sort", sortValue).Error(err)
+		log.Log(c.Request.Context()).WithField("sort", sortValue).Error(err)
 		q.Order = "ASC"
 		q.Sort = "id"
 	}
@@ -110,7 +114,7 @@ func LoadQuery(c *gin.Context) QueryParams {
 	var filterValue map[string]interface{}
 	err = json.Unmarshal([]byte(filterString), &filterValue)
 	if err != nil {
-		log.WithField("filter", filterString).Error(err)
+		log.Log(c.Request.Context()).WithField("filter", filterString).Error(err)
 	}
 
 	// 判断是否需要嵌入身份信息
@@ -157,8 +161,8 @@ func (q QueryParams) AsMongoFilter(fields []string, filters map[string]interface
 						inFilters[finalKey] = bson.M{"$in": names}
 					}
 				}
-				//log.WithField("val", val).WithField("names", names).
-				//	WithField("object", objIds).Info("================debug")
+				log.Log(q.Ctx).WithField("val", val).WithField("names", names).WithField("val", originKey).
+					WithField("object", objIds).Debug("================debug")
 			} else {
 				// 判断是否是查询范围的
 				keyWithoutSuffix, f, filterType := ToRange(finalKey, val)
@@ -170,20 +174,20 @@ func (q QueryParams) AsMongoFilter(fields []string, filters map[string]interface
 					//	WithField("filter", filter).Info("================filter")
 					mongoFilters = append(mongoFilters, filter)
 				case SecFilter:
-					log.WithField("f", finalKey).WithField("value", val).Debug("sec filter hit")
+					log.Log(q.Ctx).WithField("f", finalKey).WithField("value", val).Debug("sec filter hit")
 					valStr, err := ToString(val)
 					if err != nil {
-						log.WithField("val", val).WithField("f", f).Error(err)
+						log.Log(q.Ctx).WithField("val", val).WithField("f", f).Error(err)
 					} else {
 						secVal := GetDataSec(valStr)
 						filter := bson.E{Key: finalKey, Value: secVal}
 						mongoFilters = append(mongoFilters, filter)
 					}
 				case HashFilter:
-					log.WithField("f", finalKey).WithField("value", val).Debug("hex filter hit")
+					log.Log(q.Ctx).WithField("f", finalKey).WithField("value", val).Debug("hex filter hit")
 					valStr, err := ToString(val)
 					if err != nil {
-						log.WithField("val", val).WithField("f", f).Error(err)
+						log.Log(q.Ctx).WithField("val", val).WithField("f", f).Error(err)
 					} else {
 						hexVal := GetDataHash(valStr)
 						filter := bson.E{Key: finalKey, Value: hexVal}
@@ -196,13 +200,12 @@ func (q QueryParams) AsMongoFilter(fields []string, filters map[string]interface
 			}
 		}
 
-		// 如果存在商户号参数，那么就需要进行隔离显示
-		if q.MerchantId != "" {
-			mongoFilters = append(mongoFilters, bson.E{Key: "_.meta.merchant_id", Value: q.MerchantId})
-		}
-
 		// 过滤区间 filter: {"date_gte":"2023-12-07","date_lte":"2023-12-13"}
 
+	}
+	// 如果存在商户号参数，那么就需要进行隔离显示
+	if q.MerchantId != "" {
+		mongoFilters = append(mongoFilters, bson.E{Key: "_.meta.merchant_id", Value: q.MerchantId})
 	}
 
 	val, ok := q.KeyTranslate[q.Sort]
