@@ -83,8 +83,18 @@ func LoadQuery(c *gin.Context) QueryParams {
 			total = 500
 		}
 		limit := total - rangeValue[0] // 19 - 10
+		if limit < 0 {
+			limit = 0
+		}
+		if int64(limit) > DefaultMaxPerPage {
+			limit = DefaultMaxPerPage
+		}
 		q.Skip = int64(rangeValue[0])
 		q.PerPage = int64(limit)
+		if limit == 0 {
+			q.PerPage = DefaultPerPage
+			limit = DefaultPerPage
+		}
 		q.Page = int64(total)%int64(limit) + 1 // 1
 	}
 

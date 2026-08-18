@@ -30,6 +30,17 @@ func init() {
 	}
 }
 
+// SetDataEncryptKey sets the AES key after config is loaded.
+// Call this from main after config.LoadConfig. init() runs too early to read viper.
+func SetDataEncryptKey(key string) error {
+	b := []byte(key)
+	if len(b) != 16 && len(b) != 24 && len(b) != 32 {
+		return fmt.Errorf("encrypt key length %d is not 16/24/32", len(b))
+	}
+	dataEncryptKey = b
+	return nil
+}
+
 // EncryptData ==================== 加密手机号 ====================
 func EncryptData(data string) (string, error) {
 	data = strings.TrimSpace(data)

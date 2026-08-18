@@ -19,7 +19,7 @@ const (
 	// DefaultPageNum 默认页面数量
 	DefaultPageNum = 1
 	// DefaultMaxPerPage 默认展示最大记录每页
-	DefaultMaxPerPage = 99
+	DefaultMaxPerPage = 200
 )
 
 const (
