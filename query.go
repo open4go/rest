@@ -215,7 +215,15 @@ func (q QueryParams) AsMongoFilter(fields []string, filters map[string]interface
 	}
 	// 如果存在商户号参数，那么就需要进行隔离显示
 	if q.MerchantId != "" {
-		mongoFilters = append(mongoFilters, bson.E{Key: "_.meta.merchant_id", Value: q.MerchantId})
+		mongoFilters = append(
+			mongoFilters,
+			bson.E{
+				Key: "_.meta.merchant_id",
+				Value: bson.M{
+					"$in": []string{q.MerchantId, "share"},
+				},
+			},
+		)
 	}
 
 	val, ok := q.KeyTranslate[q.Sort]
