@@ -58,7 +58,7 @@ func LoadQuery(c *gin.Context) QueryParams {
 		Order:      "ASC",
 		Sort:       "id",
 		OrderType:  1, // 注意：这里修正了排序方向，ASC应为1
-		MerchantId: c.GetHeader("X-Tenant-ID"),
+		MerchantId: IsolateMerchantID(c),
 		Ctx:        c.Request.Context(),
 	}
 	// 初始化
@@ -213,8 +213,9 @@ func (q QueryParams) AsMongoFilter(fields []string, filters map[string]interface
 		// 过滤区间 filter: {"date_gte":"2023-12-07","date_lte":"2023-12-13"}
 
 	}
-	// 如果存在商户号参数，那么就需要进行隔离显示
-	if q.MerchantId != "" {
+	// 如果存在商户号参数，那么就需要进行隔离显示。
+	// "*" / 空 = 超管查看全部，不加隔离条件。
+	if q.MerchantId != "" && q.MerchantId != "*" {
 		mongoFilters = append(
 			mongoFilters,
 			bson.E{
