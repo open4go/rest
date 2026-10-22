@@ -2,15 +2,17 @@ package rest
 
 import (
 	b64 "encoding/base64"
-	"github.com/open4go/middle"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/open4go/middle"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -28,8 +30,36 @@ var (
 
 func init() {
 	if CustomLoginExpireTime != "" {
-		ExpireLoginSessionTime, _ = strconv.Atoi(CustomLoginExpireTime)
+		if v, err := strconv.Atoi(strings.TrimSpace(CustomLoginExpireTime)); err == nil && v > 0 {
+			ExpireLoginSessionTime = v
+		} else {
+			log.WithField("CUSTOM_LOGIN_EXPIRE_TIME", CustomLoginExpireTime).
+				Warn("invalid CUSTOM_LOGIN_EXPIRE_TIME, using default")
+		}
 	}
+}
+
+// EnvJWTCookieSecure 环境变量，设为 false 时登录 cookie 不带 Secure（仅限本地 http 开发）
+const EnvJWTCookieSecure = "JWT_COOKIE_SECURE"
+
+// jwtCookieSecure 登录 cookie 是否带 Secure 标记，默认 true。
+// 可通过 viper jwt.cookieSecure 或环境变量 JWT_COOKIE_SECURE 关闭（仅限本地 http 开发）。
+func jwtCookieSecure() bool {
+	if v := strings.TrimSpace(os.Getenv(EnvJWTCookieSecure)); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			return b
+		}
+	}
+	if viper.IsSet("jwt.cookieSecure") {
+		return viper.GetBool("jwt.cookieSecure")
+	}
+	return true
+}
+
+// SetJWTCookie 写入登录 cookie：HttpOnly、SameSite=Lax，默认 Secure。
+func SetJWTCookie(c *gin.Context, token string, maxAge int, host string) {
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie("jwt", token, maxAge, "/", host, jwtCookieSecure(), true)
 }
 
 // RenderLogin 返回登陆信息
@@ -51,9 +81,9 @@ func RenderLogin(c *gin.Context, lp middle.LoginInfo, passwordFromDB []byte, pas
 	}
 
 	// 声明密码签名
-	claims := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
+	claims := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
 		Issuer:    middle.DumpLoginInfo(lp),
-		ExpiresAt: time.Now().Add(time.Hour * time.Duration(ExpireLoginSessionTime)).Unix(), //1 day
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * time.Duration(ExpireLoginSessionTime))), //1 day
 	})
 
 	sEnc := b64.StdEncoding.EncodeToString(jwtKey)
@@ -84,7 +114,7 @@ func RenderLogin(c *gin.Context, lp middle.LoginInfo, passwordFromDB []byte, pas
 	}
 
 	// 设置缓存过期时间
-	c.SetCookie("jwt", token, 3600*ExpireLoginSessionTime, "/", host, false, false)
+	SetJWTCookie(c, token, 3600*ExpireLoginSessionTime, host)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":     "sign in success",
