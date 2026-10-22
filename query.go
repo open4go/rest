@@ -10,6 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"reflect"
+	"sort"
 	"strings"
 	"time"
 )
@@ -55,9 +56,9 @@ func LoadQuery(c *gin.Context) QueryParams {
 		// 设置合理的默认值
 		PerPage:    10,
 		Page:       1,
-		Order:      "ASC",
+		Order:      "DESC",
 		Sort:       "id",
-		OrderType:  1, // 注意：这里修正了排序方向，ASC应为1
+		OrderType:  -1, // ASC => 1, DESC => -1
 		MerchantId: c.GetHeader("X-Tenant-ID"),
 		Ctx:        c.Request.Context(),
 	}
@@ -99,12 +100,13 @@ func LoadQuery(c *gin.Context) QueryParams {
 	}
 
 	// 加载排序
-	sortString := c.DefaultQuery("sort", `["id","ASC"]`)
+	// 默认按 id 倒序（与修复前未传 sort 时的实际行为保持一致）
+	sortString := c.DefaultQuery("sort", `["id","DESC"]`)
 	var sortValue []string
 	err = json.Unmarshal([]byte(sortString), &sortValue)
 	if err != nil {
 		log.Log(c.Request.Context()).WithField("sort", sortValue).Error(err)
-		q.Order = "ASC"
+		q.Order = "DESC"
 		q.Sort = "id"
 	}
 
@@ -113,10 +115,11 @@ func LoadQuery(c *gin.Context) QueryParams {
 		q.Sort = sortValue[0]
 	}
 
-	if q.Order == "ASC" {
-		q.OrderType = -1
-	} else {
+	// ASC => 1（升序），其它 => -1（降序）
+	if strings.EqualFold(strings.TrimSpace(q.Order), "ASC") {
 		q.OrderType = 1
+	} else {
+		q.OrderType = -1
 	}
 
 	// 加载过滤器
@@ -136,7 +139,11 @@ func LoadQuery(c *gin.Context) QueryParams {
 	return q
 }
 
-// AsMongoFilter 转换过滤器
+// MerchantFilterKey 租户隔离字段
+const MerchantFilterKey = "_.meta.merchant_id"
+
+// AsMongoFilter 转换过滤器。
+// 返回值始终为 bson.D；当请求带有商户号（X-Tenant-ID）时，结果中一定包含租户隔离条件。
 // fields: a=b, b=c
 func (q QueryParams) AsMongoFilter(fields []string, filters map[string]interface{}) (interface{}, options.FindOptions) {
 	mongoFilters := bson.D{}
@@ -213,12 +220,33 @@ func (q QueryParams) AsMongoFilter(fields []string, filters map[string]interface
 		// 过滤区间 filter: {"date_gte":"2023-12-07","date_lte":"2023-12-13"}
 
 	}
-	// 如果存在商户号参数，那么就需要进行隔离显示
+	// 批量（数组）条件与其它条件合并，不再单独返回，避免丢失其它过滤条件
+	if len(inFilters) > 0 {
+		keys := make([]string, 0, len(inFilters))
+		for k := range inFilters {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		merged := make(bson.D, 0, len(keys)+len(mongoFilters)+1)
+		for _, k := range keys {
+			merged = append(merged, bson.E{Key: k, Value: inFilters[k]})
+		}
+		mongoFilters = append(merged, mongoFilters...)
+	}
+
+	// 如果存在商户号参数，那么就需要进行隔离显示（始终生效，且不允许被请求中的同名条件覆盖）
 	if q.MerchantId != "" {
+		scoped := make(bson.D, 0, len(mongoFilters)+1)
+		for _, e := range mongoFilters {
+			if e.Key == MerchantFilterKey {
+				continue
+			}
+			scoped = append(scoped, e)
+		}
 		mongoFilters = append(
-			mongoFilters,
+			scoped,
 			bson.E{
-				Key: "_.meta.merchant_id",
+				Key: MerchantFilterKey,
 				Value: bson.M{
 					"$in": []string{q.MerchantId, "share"},
 				},
@@ -234,13 +262,10 @@ func (q QueryParams) AsMongoFilter(fields []string, filters map[string]interface
 	}
 	// 设置查询选项
 	findOptions := options.FindOptions{}
-	findOptions.SetSort(bson.D{{q.Sort, q.OrderType}})
+	findOptions.SetSort(bson.D{{Key: q.Sort, Value: q.OrderType}})
 	findOptions.SetSkip(q.Skip)
 	findOptions.SetLimit(q.PerPage + 1)
 
-	if q.IsReference {
-		return inFilters, findOptions
-	}
 	return mongoFilters, findOptions
 }
 
