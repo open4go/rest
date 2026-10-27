@@ -32,7 +32,7 @@ func MakeError(c *gin.Context, title string, message string, code int, redirect 
 	}
 
 	// 根据前端显示不同的级别
-	status := "none"
+	var status string
 	if code >= 500 {
 		status = "error"
 	} else if code < 500 && code >= 400 {

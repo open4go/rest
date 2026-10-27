@@ -59,7 +59,7 @@ func MakeResponse(c *gin.Context, err error, msg string, result interface{}) {
 			"status":  Success,
 		})
 		c.Writer.Header().Set("TargetId", v)
-		c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), "TargetId", v))
+		c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), "TargetId", v)) //nolint:staticcheck // SA1029: plain-string key kept for existing readers
 	default:
 		_id := c.Param("_id")
 
@@ -76,6 +76,6 @@ func MakeResponse(c *gin.Context, err error, msg string, result interface{}) {
 			})
 		}
 		c.Writer.Header().Set("TargetId", _id)
-		c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), "TargetId", _id))
+		c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), "TargetId", _id)) //nolint:staticcheck // SA1029: plain-string key kept for existing readers
 	}
 }
