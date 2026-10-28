@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	log "github.com/open4go/log"
+	"github.com/open4go/middle"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -48,6 +49,11 @@ type QueryParams struct {
 // ?filter={"verified":false,"truck_category_id":"6515a2ac9f46f389d6804c86"}&range=[0,9]&sort=["id","ASC"]
 func LoadQuery(c *gin.Context) QueryParams {
 
+	merchantID := IsolateMerchantID(c)
+	// P1 #18: 非超管且商户号为空时，落到不可匹配哨兵，避免列表返回全租户数据。
+	if merchantID == "" && c != nil && !middle.IsSuperAdmin(c) {
+		merchantID = "__no_tenant__"
+	}
 	q := QueryParams{
 		// 初始化所有可能为nil的map
 		Filter:       make(map[string]interface{}),
@@ -59,7 +65,7 @@ func LoadQuery(c *gin.Context) QueryParams {
 		Order:      "DESC",
 		Sort:       "id",
 		OrderType:  -1, // ASC => 1, DESC => -1
-		MerchantId: c.GetHeader("X-Tenant-ID"),
+		MerchantId: merchantID,
 		Ctx:        c.Request.Context(),
 	}
 	// 初始化
