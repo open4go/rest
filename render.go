@@ -2,12 +2,16 @@ package rest
 
 import (
 	"context"
-	"github.com/open4go/log"
+	"errors"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
+	"github.com/open4go/log"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 // Status Define custom type for response status
@@ -19,6 +23,35 @@ const (
 	Failed  Status = "failed"
 	// Add more statuses as needed
 )
+
+// classifyError maps common library errors to an HTTP status and a client-safe
+// error string. Raw database / validator text stays in the server log only.
+func classifyError(err error) (code int, clientErr string) {
+	if err == nil {
+		return http.StatusOK, ""
+	}
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return http.StatusNotFound, "not found"
+	}
+	var ve validator.ValidationErrors
+	if errors.As(err, &ve) {
+		return http.StatusBadRequest, "validation failed"
+	}
+	msg := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(msg, "no documents in result"),
+		strings.Contains(msg, "not found"):
+		return http.StatusNotFound, "not found"
+	case strings.Contains(msg, "field validation"),
+		strings.Contains(msg, "cannot unmarshal"),
+		strings.Contains(msg, "invalid character"),
+		strings.Contains(msg, "unexpected end of json"),
+		strings.Contains(msg, "eof"):
+		return http.StatusBadRequest, "bad request"
+	default:
+		return http.StatusInternalServerError, "internal error"
+	}
+}
 
 // MakeResponse returns the response.
 func MakeResponse(c *gin.Context, err error, msg string, result interface{}) {
@@ -36,16 +69,17 @@ func MakeResponse(c *gin.Context, err error, msg string, result interface{}) {
 	}
 
 	if err != nil {
-		// Operation failed
-		c.JSON(http.StatusInternalServerError, gin.H{
+		code, clientErr := classifyError(err)
+		c.JSON(code, gin.H{
 			"message":    msg,
-			"error":      err.Error(),
+			"error":      clientErr,
 			"status":     Failed,
 			"timestamp":  t,
 			"request_id": RequestID,
 			"version":    version,
 		})
 		log.Log(c.Request.Context()).WithField("content", msg).
+			WithField("http_status", code).
 			Error(err)
 		return
 	}

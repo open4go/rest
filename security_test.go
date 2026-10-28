@@ -112,12 +112,17 @@ func TestAsMongoFilterTenantNotOverridable(t *testing.T) {
 	assertTenant(t, filterOf(t, f), "tenant-a")
 }
 
-func TestAsMongoFilterNoTenantNoMerchantFilter(t *testing.T) {
+func TestAsMongoFilterNoTenantIsolatesNonSuper(t *testing.T) {
+	// Non-super with empty tenant must not see all merchants (P1 #18).
 	c := newQueryCtx(t, "", map[string]string{"filter": `{"status":"on"}`})
 	q := LoadQuery(c)
+	if q.MerchantId != "__no_tenant__" {
+		t.Fatalf("MerchantId=%q, want __no_tenant__", q.MerchantId)
+	}
 	f, _ := q.AsMongoFilter([]string{"status"}, q.Filter)
-	if len(merchantEntries(filterOf(t, f))) != 0 {
-		t.Fatal("no tenant header => no merchant filter (unchanged behaviour)")
+	entries := merchantEntries(filterOf(t, f))
+	if len(entries) != 1 {
+		t.Fatalf("expected sentinel merchant filter, got %v", entries)
 	}
 }
 
