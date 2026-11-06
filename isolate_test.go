@@ -47,3 +47,28 @@ func TestIsolateMerchantIDTenantHeaderWins(t *testing.T) {
 		t.Fatalf("IsolateMerchantID=%q want st from X-Tenant-ID", got)
 	}
 }
+
+func TestIsolateMerchantIDStrictIgnoresSwitcher(t *testing.T) {
+	c := isolateCtx(map[string]string{"X-Merchant-ID": "tenant-b"})
+	if got := IsolateMerchantIDStrict(c); got != "" {
+		t.Fatalf("Strict without tenant=%q want empty (no X-Merchant-ID fallback)", got)
+	}
+	c = isolateCtx(map[string]string{
+		"X-Merchant-ID": "tenant-b",
+		"X-Tenant-ID":   "st",
+	})
+	if got := IsolateMerchantIDStrict(c); got != "st" {
+		t.Fatalf("Strict IsolateMerchantIDStrict=%q want st", got)
+	}
+	c = isolateCtx(map[string]string{"X-Tenant-ID": "*"})
+	if got := IsolateMerchantIDStrict(c); got != "" {
+		t.Fatalf("Strict tenant=* =%q want empty", got)
+	}
+}
+
+func TestIsolateMerchantIDLegacyStillFallsBack(t *testing.T) {
+	c := isolateCtx(map[string]string{"X-Merchant-ID": "legacy-m"})
+	if got := IsolateMerchantID(c); got != "legacy-m" {
+		t.Fatalf("legacy IsolateMerchantID=%q want legacy-m", got)
+	}
+}

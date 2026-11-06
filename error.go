@@ -57,3 +57,28 @@ func MakeError(c *gin.Context, title string, message string, code int, redirect 
 		WithField("message", message).WithField("status", status).
 		Error("call MakeError")
 }
+
+// RequestID returns the request/trace id written by middleware, or "Unknown".
+func RequestID(c *gin.Context) string {
+	if c == nil {
+		return "Unknown"
+	}
+	if v, ok := c.Get("RequestID"); ok {
+		if s, ok := v.(string); ok && s != "" {
+			return s
+		}
+	}
+	return "Unknown"
+}
+
+// RenderError writes a standard ErrResp JSON body (same shape as MakeError)
+// without aborting the handler chain.
+func RenderError(c *gin.Context, code int, title, message string, redirect ...string) {
+	MakeError(c, title, message, code, redirect...)
+}
+
+// AbortError writes ErrResp and aborts the gin chain (for middleware / guards).
+func AbortError(c *gin.Context, code int, title, message string, redirect ...string) {
+	MakeError(c, title, message, code, redirect...)
+	c.Abort()
+}
